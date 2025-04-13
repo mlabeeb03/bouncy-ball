@@ -1,54 +1,50 @@
-/*
-Raylib example file.
-This is an example main file for a simple raylib project.
-Use this as a starting point or replace it with your code.
-
-by Jeffery Myers is marked with CC0 1.0. To view a copy of this license, visit https://creativecommons.org/publicdomain/zero/1.0/
-
-*/
-
 #include "raylib.h"
+#include "stdio.h"
 
-#include "resource_dir.h"	// utility header for SearchAndSetResourceDir
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-int main ()
-{
-	// Tell the window to use vsync and work on high DPI displays
+#define PIXEL_X 1280		// Screen width
+#define PIXEL_Y 800			// Screen height
+#define BALL_SIZE 40		// Radius
+#define BALL_GROUNDED_Y 760 // Y cord for ball on ground (PIXEL_Y - BALL_SIZE)
+#define JUMP_STRENGTH -20
+
+void update_ball_location(int *ball_x, int *ball_y, int *ball_velocity) {
+	if (*ball_y < BALL_GROUNDED_Y || *ball_velocity < 0) {
+		(*ball_velocity)++;
+		*ball_y = MIN(BALL_GROUNDED_Y, *ball_y + *ball_velocity);
+	} else {
+		*ball_velocity = 0;
+	}
+}
+
+int main() {
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
 
-	// Create the window and OpenGL context
-	InitWindow(1280, 800, "Hello Raylib");
+	InitWindow(PIXEL_X, PIXEL_Y, "cgame");
 
-	// Utility function from resource_dir.h to find the resources folder and set it as the current working directory so we can load from it
-	SearchAndSetResourceDir("resources");
+	int ball_x = PIXEL_X / 2, ball_y = BALL_GROUNDED_Y - 400;
+	int ball_velocity = 0;
 
-	// Load a texture from the resources directory
-	Texture wabbit = LoadTexture("wabbit_alpha.png");
-	
-	// game loop
-	while (!WindowShouldClose())		// run the loop untill the user presses ESCAPE or presses the Close button on the window
-	{
-		// drawing
+	SetTargetFPS(60);
+
+	while (!WindowShouldClose()) {
 		BeginDrawing();
 
-		// Setup the back buffer for drawing (clear color and depth buffers)
-		ClearBackground(BLACK);
+		ClearBackground(RAYWHITE);
 
-		// draw some text using the default font
-		DrawText("Hello Raylib", 200,200,20,WHITE);
+		if (IsKeyPressed(KEY_SPACE)) {
+			ball_velocity = JUMP_STRENGTH;
+		}
 
-		// draw our texture to the screen
-		DrawTexture(wabbit, 400, 200, WHITE);
-		
-		// end the frame and get ready for the next one  (display frame, poll input, etc...)
+		update_ball_location(&ball_x, &ball_y, &ball_velocity);
+
+		DrawCircle(ball_x, ball_y, BALL_SIZE, RED);
+
 		EndDrawing();
 	}
 
-	// cleanup
-	// unload our texture so it can be cleaned up
-	UnloadTexture(wabbit);
-
-	// destroy the window and cleanup the OpenGL context
 	CloseWindow();
 	return 0;
 }
