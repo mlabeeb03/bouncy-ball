@@ -1,14 +1,14 @@
 #include "raylib.h"
-#include "stdio.h"
+#include <stdio.h> // NULL
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 #define PIXEL_X 1280 // Screen width
 #define PIXEL_Y 800	 // Screen height
-#define BALL_SIZE 40 // Radius
-#define BALL_LEFT_LIMIT (BALL_SIZE)
-#define BALL_RIGHT_LIMIT (PIXEL_X - BALL_SIZE)
+#define BALL_RADIUS 40
+#define BALL_LEFT_LIMIT (BALL_RADIUS)
+#define BALL_RIGHT_LIMIT (PIXEL_X - BALL_RADIUS)
 #define JUMP_STRENGTH -25 // Lower number means a higher jump
 
 typedef struct {
@@ -19,24 +19,33 @@ typedef struct {
 	float x, y, width, height;
 } Platform;
 
-int ball_bottom(Ball *ball) { return (*ball).y + (*ball).size; }
-
-int ball_on_platform(Ball *ball, Platform *platform) {
+Platform *ball_on_platform(Ball *ball, Platform *platform, int platform_count) {
 	Vector2 center = {.x = (*ball).x, .y = (*ball).y};
-	Rectangle rectangle = *(Rectangle *)platform;
-	if (CheckCollisionCircleRec(center, (*ball).size, rectangle)) {
-		return 1;
+	for (int i = 0; i < platform_count; i++) {
+		Rectangle rectangle = *(Rectangle *)&platform[i];
+		if (CheckCollisionCircleRec(center, (*ball).size, rectangle)) {
+			return &platform[i];
+		}
 	}
-	return 0;
+	return NULL;
 }
 
-void update_vertical_location(Ball *ball, Platform *platform) {
-	if (!ball_on_platform(ball, platform) || (*ball).velocity < 0) {
-		((*ball).velocity)++;
-		(*ball).y =
-			MIN((*platform).y - (*ball).size, (*ball).y + (*ball).velocity);
+void update_vertical_location(Ball *ball, Platform *platforms,
+							  int platform_count) {
+	Platform *on_platform = ball_on_platform(ball, platforms, platform_count);
+	if (on_platform && (*ball).velocity == 0) {
+		// If ball is on the platform with 0 velocity, do nothing
+		return;
 	} else {
-		(*ball).velocity = 0;
+		// change balls y location based on current velocity
+		((*ball).velocity)++;
+		(*ball).y = (*ball).y + (*ball).velocity;
+		on_platform = ball_on_platform(ball, platforms, platform_count);
+		// If ball was coming down and it hits a platform, stop it
+		if (on_platform && (*ball).velocity > 0) {
+			(*ball).velocity = 0;
+			(*ball).y = (*on_platform).y - (*ball).size;
+		}
 	}
 }
 
@@ -47,12 +56,16 @@ int main() {
 
 	Ball ball = {.x = PIXEL_X / 2,
 				 .y = PIXEL_Y / 2,
-				 .size = BALL_SIZE,
+				 .size = BALL_RADIUS,
 				 .jump_strength = JUMP_STRENGTH,
 				 .velocity = 0};
 
-	Platform platform = {
-		.x = 0, .y = PIXEL_Y - 20, .width = PIXEL_X, .height = 20};
+	int platform_count = 2;
+	Platform platforms[platform_count];
+	platforms[0] =
+		(Platform){.x = 0, .y = PIXEL_Y - 20, .width = PIXEL_X, .height = 20};
+	platforms[1] =
+		(Platform){.x = 0, .y = PIXEL_Y - 200, .width = 400, .height = 20};
 
 	SetTargetFPS(60);
 
@@ -61,8 +74,10 @@ int main() {
 
 		ClearBackground(RAYWHITE);
 
-		DrawRectangle(platform.x, platform.y, platform.width, platform.height,
-					  BLACK);
+		for (int i = 0; i < platform_count; i++) {
+			DrawRectangle(platforms[i].x, platforms[i].y, platforms[i].width,
+						  platforms[i].height, BLACK);
+		}
 
 		// Control horizontal movement
 		if (IsKeyDown(KEY_LEFT)) {
@@ -73,10 +88,11 @@ int main() {
 		}
 
 		// Control vertical movement
-		if ((ball_on_platform(&ball, &platform)) && IsKeyPressed(KEY_SPACE)) {
+		if ((ball_on_platform(&ball, platforms, platform_count)) &&
+			IsKeyPressed(KEY_SPACE)) {
 			ball.velocity = JUMP_STRENGTH;
 		}
-		update_vertical_location(&ball, &platform);
+		update_vertical_location(&ball, platforms, platform_count);
 
 		DrawCircle(ball.x, ball.y, ball.size, RED);
 
